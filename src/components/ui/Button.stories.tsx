@@ -4,19 +4,48 @@ import { Button } from "./Button";
 const meta: Meta<typeof Button> = {
   title: "UI/Button",
   component: Button,
+  parameters: {
+    docs: {
+      description: {
+        component: `
+A **Button** triggers an action or event.  
+Supports both primary and secondary variants with consistent design tokens.
+
+### Usage
+\`\`\`tsx
+<Button variant="primary">Click Me</Button>
+<Button variant="secondary">Cancel</Button>
+\`\`\`
+        `,
+      },
+    },
+  },
+  argTypes: {
+    variant: {
+      control: "select",
+      options: ["primary", "secondary"],
+      description: "Defines the visual style of the button.",
+    },
+    onClick: {
+      action: "clicked",
+      description: "Event handler triggered when the button is pressed.",
+    },
+  },
 };
 export default meta;
 
-export const Primary: StoryObj<typeof Button> = {
+type Story = StoryObj<typeof Button>;
+
+export const Primary: Story = {
   args: {
-    children: "Click Me",
+    children: "Primary Button",
     variant: "primary",
   },
 };
 
-export const Secondary: StoryObj<typeof Button> = {
+export const Secondary: Story = {
   args: {
-    children: "Cancel",
+    children: "Secondary Button",
     variant: "secondary",
   },
 };
