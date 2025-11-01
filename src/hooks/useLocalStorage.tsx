@@ -1,11 +1,11 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type Serializer<T> = (value: T) => string;
 type Parser<T> = (raw: string) => T;
 
-const defaultSerializer = <T>(v: T) => JSON.stringify(v);
-const defaultParser = <T>(raw: string) => JSON.parse(raw) as T;
+const defaultSerializer = <T,>(v: T) => JSON.stringify(v);
+const defaultParser = <T,>(raw: string) => JSON.parse(raw) as T;
 
 /**
  * useLocalStorage
@@ -23,70 +23,74 @@ export function useLocalStorage<T>(
 ) {
   const serializer = opts?.serializer ?? defaultSerializer<T>;
   const parser = opts?.parser ?? defaultParser<T>;
-  const isMounted = useRef(false);
+  const isBrowser = useMemo(() => typeof window !== "undefined", []);
 
   // SSR-safe initial state (no window access)
   const [value, setValue] = useState<T>(initial);
 
-  // On mount, read from localStorage
+  // On mount & when key/serializer/parser change, read from localStorage
   useEffect(() => {
-    isMounted.current = true;
+    if (!isBrowser) return;
+
     try {
-      const raw =
-        typeof window !== "undefined" ? window.localStorage.getItem(key) : null;
+      const raw = window.localStorage.getItem(key);
       if (raw != null) {
         setValue(parser(raw));
       } else {
         // persist initial if nothing there
-        if (typeof window !== "undefined") {
-          window.localStorage.setItem(key, serializer(initial));
-        }
+        window.localStorage.setItem(key, serializer(initial));
       }
     } catch {
-      // swallow parsing/storage errors and keep initial
+      // swallow parsing/storage errors and keep `initial`
     }
 
-    // cross-tab sync
+    // cross-tab sync (set and remove)
     const onStorage = (e: StorageEvent) => {
-      if (e.key === key && e.newValue != null) {
-        try {
+      if (e.key !== key) return;
+      try {
+        if (e.newValue == null) {
+          // key removed elsewhere
+          setValue(initial);
+        } else {
           setValue(parser(e.newValue));
-        } catch {}
+        }
+      } catch {
+        // ignore parse errors from other tabs
       }
     };
-    window.addEventListener("storage", onStorage);
 
-    return () => {
-      isMounted.current = false;
-      window.removeEventListener("storage", onStorage);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [isBrowser, key, parser, serializer, initial]);
 
   const set = useCallback(
     (next: T | ((prev: T) => T)) => {
       setValue((prev) => {
         const computed =
           typeof next === "function" ? (next as (p: T) => T)(prev) : next;
-        try {
-          if (typeof window !== "undefined") {
+        if (isBrowser) {
+          try {
             window.localStorage.setItem(key, serializer(computed));
+          } catch {
+            // ignore quota/security errors
           }
-        } catch {}
+        }
         return computed;
       });
     },
-    [key, serializer]
+    [isBrowser, key, serializer]
   );
 
   const remove = useCallback(() => {
-    try {
-      if (typeof window !== "undefined") {
+    if (isBrowser) {
+      try {
         window.localStorage.removeItem(key);
+      } catch {
+        // ignore
       }
-    } catch {}
+    }
     setValue(initial);
-  }, [initial, key]);
+  }, [isBrowser, key, initial]);
 
   return { value, set, remove };
 }

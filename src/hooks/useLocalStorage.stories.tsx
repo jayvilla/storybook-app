@@ -9,19 +9,8 @@ const meta: Meta = {
     docs: {
       description: {
         component: `
-A React hook that persists state to \`localStorage\`, supports JSON values, and syncs across tabs.
-
-**Features**
-- SSR-safe initial value
-- JSON serialize/parse by default
-- Cross-tab synchronization via \`storage\` events
-- Imperative \`set\` and \`remove\`
-
-**Usage**
-\`\`\`tsx
-const { value, set, remove } = useLocalStorage<string>("username", "");
-\`\`\`
-        `,
+A React hook that persists state to \`localStorage\` with JSON serialization and cross-tab sync.
+`,
       },
     },
   },
